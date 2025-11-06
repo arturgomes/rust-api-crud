@@ -206,7 +206,7 @@ docker-compose logs postgres
 - Docker not running? Start Docker Desktop
 - Port 5432 in use? Change port in `docker-compose.yml`
 
-#### 2. Install SQLx CLI (Day 1) ⏱️ 30 minutes
+#### 2. Install SQLx CLI (Day 1) ⏱️ 30 minutes ok
 
 ```bash
 # Install SQLx command-line tool
@@ -218,7 +218,7 @@ sqlx --version
 
 **✅ Checkpoint**: `sqlx --version` works
 
-#### 3. Create First Migration (Day 1-2) ⏱️ 2 hours
+#### 3. Create First Migration (Day 1-2) ⏱️ 2 hours ok
 
 ```bash
 # Create users table migration
@@ -255,7 +255,7 @@ docker exec -it rust_crud_db psql -U rustuser -d rustcrud
 \q  # Quit
 ```
 
-#### 4. Set Up Database Module (Day 2-3) ⏱️ 3 hours
+#### 4. Set Up Database Module (Day 2-3) ⏱️ 3 hours OK
 
 Create [src/db/mod.rs](../src/db/mod.rs):
 

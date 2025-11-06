@@ -20,5 +20,20 @@ pub async fn create_pool(database_url: &str) -> Result<PgPool, sqlx::Error> {
 // TODO (Phase 1): Add any additional database utility functions here
 // Examples:
 // - Health check function
+pub async fn health_check(pool: &PgPool) -> Result<(), sqlx::Error> {
+    sqlx::query("SELECT 1").execute(pool).await?;
+    Ok(())
+}
 // - Migration runner
+pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::Error> {
+    sqlx::migrate!("./migrations").run(pool).await?;
+    Ok(())
+}
 // - Database statistics
+pub fn get_database_statistics(pool: &PgPool) -> (u32, u32, u32) {
+    (
+        pool.size(),
+        pool.num_idle(),
+        pool.options().get_max_connections()
+    )
+}
