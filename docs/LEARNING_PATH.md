@@ -35,7 +35,7 @@ cargo --version
 cargo build
 ```
 
-**✅ Checkpoint**: `cargo build` completes successfully
+**✅ Checkpoint**: `cargo build` completes successfully - DONE
 
 **🚨 Stuck?**
 - Rust not found? Run: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
@@ -118,12 +118,12 @@ Now that it works, experiment! This is the best way to learn.
 
 **Experiments to Try**:
 
-1. **Add a new operation** (e.g., modulo, power)
+1. DONE - **Add a new operation** (e.g., modulo, power)
    ```rust
    "modulo" => params.a % params.b,
    ```
 
-2. **Change the response format**
+2. DONE - **Change the response format**
    ```rust
    #[derive(Serialize)]
    struct CalculatorResponse {
@@ -132,9 +132,9 @@ Now that it works, experiment! This is the best way to learn.
    }
    ```
 
-3. **Add input validation** (reject negative numbers for certain ops)
+3. DONE - **Add input validation** (reject negative numbers for certain ops)
 
-4. **Add a health check endpoint**
+4. DONE - **Add a health check endpoint**
    ```rust
    .route("/health", get(health_check))
    ```

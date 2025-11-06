@@ -31,6 +31,7 @@ struct CalculatorRequest {
 #[derive(Serialize)]
 struct CalculatorResponse {
     result: f64,
+    operation: String,
 }
 
 // TypeScript equivalent:
@@ -62,6 +63,16 @@ async fn calculate(
             }
             params.a / params.b
         }
+        "modulo" => params.a % params.b,
+        "power" => {
+            if params.b < 0.0 {
+                return Json(serde_json::json!(ErrorResponse {
+                    error: "Power operation requires a positive exponent".to_string()
+                }));
+            }
+            params.a.powf(params.b)
+        },
+        "double" => params.a * 2.0,
         _ => {
             return Json(serde_json::json!(ErrorResponse {
                 error: format!("Unknown operation: {}", params.op)
@@ -69,9 +80,15 @@ async fn calculate(
         }
     };
 
-    Json(serde_json::json!(CalculatorResponse { result }))
+    Json(serde_json::json!(CalculatorResponse { result, operation: params.op }))
 }
-
+// Health check endpoint
+async fn health_check() -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "status": "ok",
+        "message": "Calculator API is working well"
+    }))
+}
 // Main function - async like TypeScript async function
 // TypeScript equivalent:
 // async function main() { ... }
@@ -85,7 +102,8 @@ async fn main() {
     // const app = express();
     // app.get('/calculate', calculate);
     let app = Router::new()
-        .route("/calculate", get(calculate));
+        .route("/calculate", get(calculate))
+        .route("/health", get(health_check));
 
     // Set the address
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
