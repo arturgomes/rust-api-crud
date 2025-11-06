@@ -34,6 +34,11 @@ pub struct UpdateUserRequest {
     pub email: Option<String>,
 }
 
+#[derive(Serialize,Deserialize)]
+pub struct ErrorResponse {
+    pub error: String,
+}
+
 // Response type for listing users with pagination
 #[derive(Debug, Serialize)]
 pub struct UserListResponse {

@@ -39,10 +39,30 @@ pub async fn create_user(
 ) -> Result<(StatusCode, Json<User>), StatusCode> {
     // TODO: Implement user creation
     // 1. Use sqlx::query_as! macro to insert and return the user
+    let user = sqlx::query_as!(
+        User,
+        r#"
+        INSERT INTO users (name, email) 
+        VALUES ($1, $2) 
+         RETURNING id, name, email, created_at, updated_at
+        "#,
+        payload.name,
+        payload.email
+    )
+    .fetch_one(&pool)
+    .await
+    .map_err(|e| {
+        if let Some(db_err) = e.as_database_error() {
+            if db_err.is_unique_violation() {
+                return StatusCode::CONFLICT;
+            }
+        }
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
     // 2. Handle errors appropriately
     // 3. Return (StatusCode::CREATED, Json(user))
-
-    Err(StatusCode::NOT_IMPLEMENTED)
+    Ok((StatusCode::CREATED, Json(user)))
 }
 
 // ============================================================================
@@ -193,8 +213,28 @@ pub async fn delete_user(
     // 1. Execute DELETE query
     // 2. Check rows_affected()
     // 3. Return 204 No Content if deleted, 404 if not found
-
-    StatusCode::NOT_IMPLEMENTED
+    let result = sqlx::query!(
+        r#"
+        DELETE FROM users WHERE id = $1
+        "#,
+        id,
+    )
+    .execute(&pool)
+    .await;
+    
+    match result {
+        Ok(query_result) => {
+            if query_result.rows_affected() == 0 {
+                return StatusCode::NOT_FOUND;
+            } else {
+                return StatusCode::NO_CONTENT;
+            }
+        }
+        Err(_) => {
+            return StatusCode::INTERNAL_SERVER_ERROR;
+        }
+    }
+   
 }
 
 // ============================================================================

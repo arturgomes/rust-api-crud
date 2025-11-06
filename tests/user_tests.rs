@@ -9,6 +9,7 @@
 
 use serde_json::json;
 use uuid::Uuid;
+use rust_api_crud::models::ErrorResponse;
 
 // Base URL for the API (make sure server is running on port 3000)
 const BASE_URL: &str = "http://localhost:3000";
@@ -62,6 +63,50 @@ async fn test_create_user_success() {
 }
 
 // TODO: Add test for duplicate email (should return 409)
+
+#[tokio::test]
+async fn test_create_duplicated_user() {
+    let client = client();
+
+    let response = client
+        .post(&format!("{}/users", BASE_URL))
+        .json(&json!({
+            "name": "Alice",
+            "email": "alice@example.com"
+        }))
+        .send()
+        .await
+        .expect("Failed to send request");
+
+    // Should return 201 Created
+    assert_eq!(response.status(), 201);
+    let response1 = client
+        .post(&format!("{}/users", BASE_URL))
+        .json(&json!({
+            "name": "Alice",
+            "email": "alice@example.com"
+        }))
+        .send()
+        .await
+        .expect("Failed to send request");
+    tracing::info!("error status {}", response1.status());
+    let data: ErrorResponse = response1.json().await.unwrap();
+
+    assert_eq!(data.error, "User already exists");
+    assert_eq!(response.status(), 400);
+    let user: serde_json::Value = response
+        .json()
+        .await
+        .expect("Failed to parse response");
+
+    // Cleanup - delete the test user
+    let user_id = user["id"].as_str().unwrap();
+    let _ = client
+        .delete(&format!("{}/users/{}", BASE_URL, user_id))
+        .send()
+        .await;
+}
+
 // TODO: Add test for invalid email format (should return 400)
 // TODO: Add test for missing fields (should return 400)
 

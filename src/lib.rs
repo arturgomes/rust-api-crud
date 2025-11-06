@@ -12,10 +12,11 @@ use serde::{Deserialize, Serialize};
 use axum::{
     extract::Query,
     response::Json,
-    routing::get,
+    routing::{get, post, put, delete},
     Router,
 };
 use tracing::info_span;
+use handlers::user_handlers;
 
 // TypeScript equivalent:
 // interface CalculatorRequest {
@@ -122,6 +123,11 @@ pub fn create_app(pool: PgPool) -> Router {
         .route("/health", get(health))
         .route("/health/db", get(db_health))
         .route("/calculate", get(calculate))
+        .route("/users", post(user_handlers::create_user))
+        .route("/users/:id", get(user_handlers::get_user))
+        .route("/users", get(user_handlers::list_users))
+        .route("/users/:id", put(user_handlers::update_user))
+        .route("/users/:id", delete(user_handlers::delete_user))
         .with_state(pool)
         .layer(
             TraceLayer::new_for_http()
