@@ -33,7 +33,7 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::Error> {
 pub fn get_database_statistics(pool: &PgPool) -> (u32, u32, u32) {
     (
         pool.size(),
-        pool.num_idle(),
+        pool.num_idle().try_into().unwrap(),
         pool.options().get_max_connections()
     )
 }

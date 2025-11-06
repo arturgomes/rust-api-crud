@@ -1,3 +1,13 @@
+// Module declarations
+pub mod db;
+pub mod handlers;
+pub mod models;
+
+// Imports
+use sqlx::PgPool;
+use axum::extract::{Request, State};
+use axum::http::StatusCode;
+use tower_http::trace::TraceLayer;
 use serde::{Deserialize, Serialize};
 use axum::{
     extract::Query,
@@ -5,6 +15,7 @@ use axum::{
     routing::get,
     Router,
 };
+use tracing::info_span;
 
 // TypeScript equivalent:
 // interface CalculatorRequest {
@@ -77,15 +88,51 @@ pub async fn calculate(
 
     Json(serde_json::json!(CalculatorResponse { result, operation: params.op }))
 }
-// Health check endpoint
-pub async fn health_check() -> Json<serde_json::Value> {
+// Basic health check endpoint (no database required)
+// TypeScript equivalent:
+// async function health() { return { status: "ok" }; }
+pub async fn health() -> Json<serde_json::Value> {
     Json(serde_json::json!({
         "status": "ok",
-        "message": "Calculator API is working well"
+        "message": "Server is running"
     }))
 }
-pub fn create_app() -> Router {
+
+// Database health check endpoint
+// TypeScript equivalent:
+// async function dbHealth(pool: Pool) {
+//   try {
+//     await pool.query('SELECT 1');
+//     return { status: "ok" };
+//   } catch(err) {
+//     return { status: 503, error: "Database unavailable" };
+//   }
+// }
+pub async fn db_health(State(pool): State<PgPool>) -> Result<Json<serde_json::Value>, StatusCode> {
+    match crate::db::health_check(&pool).await {
+        Ok(_) => Ok(Json(serde_json::json!({
+            "status": "ok",
+            "message": "Database connection is healthy"
+        }))),
+        Err(_) => Err(StatusCode::SERVICE_UNAVAILABLE),
+    }
+}
+pub fn create_app(pool: PgPool) -> Router {
     Router::new()
+        .route("/health", get(health))
+        .route("/health/db", get(db_health))
         .route("/calculate", get(calculate))
-        .route("/health", get(health_check))
+        .with_state(pool)
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(|request: &Request<_>| {
+                    // Create tracing span for each HTTP request
+                    // TypeScript equivalent: console.log(`${method} ${uri}`)
+                    info_span!(
+                        "http_request",
+                        method = %request.method(),
+                        uri = %request.uri(),
+                    )
+                })
+        )
 }
