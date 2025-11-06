@@ -143,7 +143,7 @@ Now that it works, experiment! This is the best way to learn.
 
 **✅ Checkpoint**: Successfully added at least one modification
 
-#### 5. Understand the Tests (Day 4-5) ⏱️ 2 hours
+#### 5. Understand the Tests (Day 4-5) ⏱️ 2 hours - DONE
 
 Read [tests/calculator_tests.rs](../tests/calculator_tests.rs).
 
@@ -200,7 +200,7 @@ docker ps
 docker-compose logs postgres
 ```
 
-**✅ Checkpoint**: PostgreSQL container is running
+**✅ Checkpoint**: PostgreSQL container is running - YES
 
 **🚨 Stuck?**
 - Docker not running? Start Docker Desktop
@@ -237,7 +237,7 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 ```
 
 **Run the migration**:
@@ -245,7 +245,7 @@ CREATE INDEX idx_users_email ON users(email);
 sqlx migrate run
 ```
 
-**✅ Checkpoint**: Migration runs successfully
+**✅ Checkpoint**: Migration runs successfully OK!
 
 **Verify in psql** (optional):
 ```bash
