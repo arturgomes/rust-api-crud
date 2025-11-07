@@ -40,7 +40,7 @@ pub struct ErrorResponse {
 }
 
 // Response type for listing users with pagination
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct UserListResponse {
     pub users: Vec<User>,
     pub total: i64,

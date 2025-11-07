@@ -3,20 +3,71 @@
 // These tests will guide your implementation through TDD.
 // Run each test, see it fail, implement the handler, see it pass!
 //
+// PREREQUISITES:
+// 1. Docker PostgreSQL running: docker-compose up -d
+// 2. Migrations applied: sqlx migrate run
+// 3. Server running: cargo run (in another terminal)
+// 4. Clean database (if list_users not implemented):
+//    docker exec -i rust_crud_db psql -U rustuser rustcrud -c "TRUNCATE users CASCADE;"
+//
 // To run: cargo test
 // To run specific test: cargo test test_create_user
 // To see output: cargo test -- --nocapture
 
 use serde_json::json;
 use uuid::Uuid;
-use rust_api_crud::models::ErrorResponse;
+use rust_api_crud::models::{User, UserListResponse, ErrorResponse};
+use axum::response::ErrorResponse as OtherErrorResponse;
 
-// Base URL for the API (make sure server is running on port 3000)
 const BASE_URL: &str = "http://localhost:3000";
 
-// Helper function to create a reqwest client
 fn client() -> reqwest::Client {
     reqwest::Client::new()
+}
+
+#[allow(dead_code)]
+async fn cleanup_all_users() {
+    let client = client();
+
+    if let Ok(response) = client.get(&format!("{}/users", BASE_URL)).send().await {
+        if let Ok(result) = response.json::<UserListResponse>().await {
+            for user in &result.users {
+                let user_id = user.id.to_string();
+                let _ = client
+                    .delete(&format!("{}/users/{}", BASE_URL, user_id))
+                    .send()
+                    .await;
+            }
+        }
+    }
+}
+
+async fn cleanup_user_by_email(email: &str) {
+    let client = client();
+
+    let Ok(response) = client.get(&format!("{}/users", BASE_URL)).send().await else {
+        return;
+    };
+
+    if !response.status().is_success() {
+        return;
+    }
+
+    let Ok(result) = response.json::<UserListResponse>().await else {
+        return;
+    };
+
+    for user in &result.users {
+        if user.email == email {
+            let user_id = user.id.to_string();
+            let _ = client
+                .delete(&format!("{}/users/{}", BASE_URL, user_id))
+                .send()
+                .await;
+        }
+    }
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 }
 
 // ============================================================================
@@ -25,6 +76,8 @@ fn client() -> reqwest::Client {
 
 #[tokio::test]
 async fn test_create_user_success() {
+    cleanup_user_by_email("alice@example.com").await;
+
     let client = client();
 
     let response = client
@@ -37,35 +90,28 @@ async fn test_create_user_success() {
         .await
         .expect("Failed to send request");
 
-    // Should return 201 Created
     assert_eq!(response.status(), 201);
 
-    let user: serde_json::Value = response
+    let user: User = response
         .json()
         .await
         .expect("Failed to parse response");
 
-    // Verify response structure
-    assert_eq!(user["name"], "Alice");
-    assert_eq!(user["email"], "alice@example.com");
-    assert!(user["id"].is_string(), "ID should be present");
-    assert!(
-        user["created_at"].is_string(),
-        "created_at should be present"
-    );
+    assert_eq!(user.name, "Alice");
+    assert_eq!(user.email, "alice@example.com");
 
-    // Cleanup - delete the test user
-    let user_id = user["id"].as_str().unwrap();
+    let user_id = user.id.to_string();
     let _ = client
         .delete(&format!("{}/users/{}", BASE_URL, user_id))
         .send()
         .await;
 }
 
-// TODO: Add test for duplicate email (should return 409)
 
 #[tokio::test]
 async fn test_create_duplicated_user() {
+    cleanup_user_by_email("alice@example.com").await;
+
     let client = client();
 
     let response = client
@@ -77,9 +123,9 @@ async fn test_create_duplicated_user() {
         .send()
         .await
         .expect("Failed to send request");
-
-    // Should return 201 Created
     assert_eq!(response.status(), 201);
+    let first_user: User = response.json().await.expect("Failed to parse first user");
+
     let response1 = client
         .post(&format!("{}/users", BASE_URL))
         .json(&json!({
@@ -90,17 +136,10 @@ async fn test_create_duplicated_user() {
         .await
         .expect("Failed to send request");
     tracing::info!("error status {}", response1.status());
-    let data: ErrorResponse = response1.json().await.unwrap();
 
-    assert_eq!(data.error, "User already exists");
-    assert_eq!(response.status(), 400);
-    let user: serde_json::Value = response
-        .json()
-        .await
-        .expect("Failed to parse response");
+    assert_eq!(response1.status(), 409);
 
-    // Cleanup - delete the test user
-    let user_id = user["id"].as_str().unwrap();
+    let user_id = first_user.id.to_string();
     let _ = client
         .delete(&format!("{}/users/{}", BASE_URL, user_id))
         .send()
@@ -116,6 +155,9 @@ async fn test_create_duplicated_user() {
 
 #[tokio::test]
 async fn test_get_user_success() {
+    // Cleanup any existing test user with this email
+    cleanup_user_by_email("bob@example.com").await;
+
     let client = client();
 
     // First create a user
@@ -129,8 +171,8 @@ async fn test_get_user_success() {
         .await
         .unwrap();
 
-    let created_user: serde_json::Value = create_response.json().await.unwrap();
-    let user_id = created_user["id"].as_str().unwrap();
+    let created_user: User = create_response.json().await.unwrap();
+    let user_id = created_user.id.to_string();
 
     // Now get the user
     let response = client
@@ -141,9 +183,9 @@ async fn test_get_user_success() {
 
     assert_eq!(response.status(), 200);
 
-    let user: serde_json::Value = response.json().await.unwrap();
-    assert_eq!(user["name"], "Bob");
-    assert_eq!(user["email"], "bob@example.com");
+    let user: User = response.json().await.unwrap();
+    assert_eq!(user.name, "Bob");
+    assert_eq!(user.email, "bob@example.com");
 
     // Cleanup
     let _ = client
@@ -193,24 +235,18 @@ async fn test_list_users_default_pagination() {
 
     assert_eq!(response.status(), 200);
 
-    let result: serde_json::Value = response.json().await.unwrap();
+    let result: UserListResponse = response.json().await.unwrap();
 
-    // Verify response structure
-    assert!(result["users"].is_array());
-    assert!(result["total"].is_number());
-    assert_eq!(result["page"], 1);
-    assert_eq!(result["per_page"], 10);
+    assert!(result.total >= 0); 
+    assert_eq!(result.page, 1);
+    assert_eq!(result.per_page, 10);
 
-    // Cleanup - delete test users
-    if let Some(users) = result["users"].as_array() {
-        for user in users {
-            if let Some(id) = user["id"].as_str() {
-                let _ = client
-                    .delete(&format!("{}/users/{}", BASE_URL, id))
-                    .send()
-                    .await;
-            }
-        }
+    for user in &result.users {
+        let user_id = user.id.to_string();
+        let _ = client
+            .delete(&format!("{}/users/{}", BASE_URL, user_id))
+            .send()
+            .await;
     }
 }
 
@@ -224,9 +260,10 @@ async fn test_list_users_default_pagination() {
 
 #[tokio::test]
 async fn test_update_user_success() {
+    cleanup_user_by_email("original@example.com").await;
+
     let client = client();
 
-    // Create a user
     let create_response = client
         .post(&format!("{}/users", BASE_URL))
         .json(&json!({
@@ -237,10 +274,9 @@ async fn test_update_user_success() {
         .await
         .unwrap();
 
-    let created_user: serde_json::Value = create_response.json().await.unwrap();
-    let user_id = created_user["id"].as_str().unwrap();
+    let created_user: User = create_response.json().await.unwrap();
+    let user_id = created_user.id.to_string();
 
-    // Update the user
     let response = client
         .put(&format!("{}/users/{}", BASE_URL, user_id))
         .json(&json!({
@@ -252,11 +288,10 @@ async fn test_update_user_success() {
 
     assert_eq!(response.status(), 200);
 
-    let updated_user: serde_json::Value = response.json().await.unwrap();
-    assert_eq!(updated_user["name"], "Updated Name");
-    assert_eq!(updated_user["email"], "original@example.com"); // Email unchanged
+    let updated_user: User = response.json().await.unwrap();
+    assert_eq!(updated_user.name, "Updated Name");
+    assert_eq!(updated_user.email, "original@example.com"); 
 
-    // Cleanup
     let _ = client
         .delete(&format!("{}/users/{}", BASE_URL, user_id))
         .send()
@@ -277,7 +312,6 @@ async fn test_update_user_not_found() {
         .await
         .unwrap();
 
-    // Should return 404
     assert_eq!(response.status(), 404);
 }
 
@@ -290,9 +324,10 @@ async fn test_update_user_not_found() {
 
 #[tokio::test]
 async fn test_delete_user_success() {
+    cleanup_user_by_email("delete@example.com").await;
+
     let client = client();
 
-    // Create a user
     let create_response = client
         .post(&format!("{}/users", BASE_URL))
         .json(&json!({
@@ -303,20 +338,17 @@ async fn test_delete_user_success() {
         .await
         .unwrap();
 
-    let created_user: serde_json::Value = create_response.json().await.unwrap();
-    let user_id = created_user["id"].as_str().unwrap();
+    let created_user: User = create_response.json().await.unwrap();
+    let user_id = created_user.id.to_string();
 
-    // Delete the user
     let response = client
         .delete(&format!("{}/users/{}", BASE_URL, user_id))
         .send()
         .await
         .unwrap();
 
-    // Should return 204 No Content
     assert_eq!(response.status(), 204);
 
-    // Verify user is really deleted
     let get_response = client
         .get(&format!("{}/users/{}", BASE_URL, user_id))
         .send()
@@ -337,7 +369,6 @@ async fn test_delete_user_not_found() {
         .await
         .unwrap();
 
-    // Should return 404
     assert_eq!(response.status(), 404);
 }
 
@@ -347,9 +378,10 @@ async fn test_delete_user_not_found() {
 
 #[tokio::test]
 async fn test_complete_user_lifecycle() {
+    cleanup_user_by_email("lifecycle@example.com").await;
+
     let client = client();
 
-    // 1. CREATE
     let create_response = client
         .post(&format!("{}/users", BASE_URL))
         .json(&json!({
@@ -361,10 +393,9 @@ async fn test_complete_user_lifecycle() {
         .unwrap();
 
     assert_eq!(create_response.status(), 201);
-    let user: serde_json::Value = create_response.json().await.unwrap();
-    let user_id = user["id"].as_str().unwrap();
+    let user: User = create_response.json().await.unwrap();
+    let user_id = user.id.to_string();
 
-    // 2. READ
     let get_response = client
         .get(&format!("{}/users/{}", BASE_URL, user_id))
         .send()
@@ -372,7 +403,6 @@ async fn test_complete_user_lifecycle() {
         .unwrap();
     assert_eq!(get_response.status(), 200);
 
-    // 3. UPDATE
     let update_response = client
         .put(&format!("{}/users/{}", BASE_URL, user_id))
         .json(&json!({
@@ -383,7 +413,6 @@ async fn test_complete_user_lifecycle() {
         .unwrap();
     assert_eq!(update_response.status(), 200);
 
-    // 4. LIST (should contain our user)
     let list_response = client
         .get(&format!("{}/users", BASE_URL))
         .send()
@@ -391,7 +420,6 @@ async fn test_complete_user_lifecycle() {
         .unwrap();
     assert_eq!(list_response.status(), 200);
 
-    // 5. DELETE
     let delete_response = client
         .delete(&format!("{}/users/{}", BASE_URL, user_id))
         .send()
@@ -399,7 +427,6 @@ async fn test_complete_user_lifecycle() {
         .unwrap();
     assert_eq!(delete_response.status(), 204);
 
-    // 6. VERIFY DELETION
     let final_get = client
         .get(&format!("{}/users/{}", BASE_URL, user_id))
         .send()
