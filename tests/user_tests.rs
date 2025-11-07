@@ -107,15 +107,15 @@ async fn test_create_user_success() {
 
 #[tokio::test]
 async fn test_create_duplicated_user() {
-    cleanup_user_by_email("alice@example.com").await;
+    cleanup_user_by_email("duplicate@example.com").await;
 
     let client = client();
 
     let response = client
         .post(&format!("{}/users", BASE_URL))
         .json(&json!({
-            "name": "Alice",
-            "email": "alice@example.com"
+            "name": "Duplicate User",
+            "email": "duplicate@example.com"
         }))
         .send()
         .await
@@ -126,8 +126,8 @@ async fn test_create_duplicated_user() {
     let response1 = client
         .post(&format!("{}/users", BASE_URL))
         .json(&json!({
-            "name": "Alice",
-            "email": "alice@example.com"
+            "name": "Duplicate User",
+            "email": "duplicate@example.com"
         }))
         .send()
         .await
