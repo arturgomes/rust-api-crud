@@ -11,6 +11,13 @@ A complete CRUD API with:
 
 **Tech Stack**: Axum + SQLx + PostgreSQL + Docker + Tokio
 
+## If you want to start from scratch, you should checkout the [`starting-point`](https://github.com/arturgomes/rust-api-crud/tree/starting-point) branch.
+
+```bash
+git clone https://github.com/arturgomes/rust-api-crud/
+git checkout starting-point
+```
+
 ## 🚀 Quick Start (3 Commands)
 
 ```bash
@@ -174,14 +181,14 @@ curl http://localhost:3000/users/1
 
 Track your progress:
 
-- [ ] Phase 0: Calculator API working
-- [ ] Phase 1: Database infrastructure setup
-- [ ] Phase 2.1: CREATE user endpoint
-- [ ] Phase 2.2: READ user endpoint
-- [ ] Phase 2.3: LIST users with pagination
-- [ ] Phase 2.4: UPDATE user endpoint
-- [ ] Phase 2.5: DELETE user endpoint
-- [ ] All tests passing
+- [x] Phase 0: Calculator API working ✅
+- [x] Phase 1: Database infrastructure setup ✅
+- [x] Phase 2.1: CREATE user endpoint ✅
+- [x] Phase 2.2: READ user endpoint ✅
+- [x] Phase 2.3: LIST users with pagination ✅
+- [x] Phase 2.4: UPDATE user endpoint ✅
+- [x] Phase 2.5: DELETE user endpoint ✅
+- [x] All tests passing (10/10) ✅
 - [ ] Documentation complete
 
 ## 🤝 Learning Tips
