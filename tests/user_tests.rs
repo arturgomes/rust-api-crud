@@ -7,8 +7,6 @@
 // 1. Docker PostgreSQL running: docker-compose up -d
 // 2. Migrations applied: sqlx migrate run
 // 3. Server running: cargo run (in another terminal)
-// 4. Clean database (if list_users not implemented):
-//    docker exec -i rust_crud_db psql -U rustuser rustcrud -c "TRUNCATE users CASCADE;"
 //
 // To run: cargo test
 // To run specific test: cargo test test_create_user
@@ -17,7 +15,6 @@
 use serde_json::json;
 use uuid::Uuid;
 use rust_api_crud::models::{User, UserListResponse, ErrorResponse};
-use axum::response::ErrorResponse as OtherErrorResponse;
 
 const BASE_URL: &str = "http://localhost:3000";
 
